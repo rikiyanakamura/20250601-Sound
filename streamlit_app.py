@@ -1,9 +1,8 @@
-
 import streamlit as st
 import pandas as pd
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import cross_val_score, train_test_split
+from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_auc_score, roc_curve, accuracy_score
 import matplotlib.pyplot as plt
 
@@ -18,9 +17,9 @@ def load_data():
 df = load_data()
 
 # Preprocessing
-df = df.dropna()
-X = df.drop("metastasis", axis=1)
-y = df["metastasis"]
+d = df.dropna()
+X = d.drop("metastasis", axis=1)
+y = d["metastasis"]
 
 # One-hot encoding for categorical variables
 X_encoded = pd.get_dummies(X)
@@ -34,22 +33,18 @@ model.fit(X_train, y_train)
 
 # Predict
 y_pred = model.predict(X_test)
-y_prob = model.predict_proba(X_test)[:, 1]
+y_prob = model.predict_proba(X_test)
 
 # Display performance
 st.subheader("Model Evaluation")
 st.write(f"Accuracy: {accuracy_score(y_test, y_pred):.2f}")
-st.write(f"AUC: {roc_auc_score(y_test, y_prob):.2f}")
 
-# ROC Curve
-fpr, tpr, _ = roc_curve(y_test, y_prob)
-fig, ax = plt.subplots()
-ax.plot(fpr, tpr, label="ROC curve")
-ax.plot([0, 1], [0, 1], "k--")
-ax.set_xlabel("False Positive Rate")
-ax.set_ylabel("True Positive Rate")
-ax.set_title("ROC Curve")
-st.pyplot(fig)
+# Use multi-class AUC calculation
+auc = roc_auc_score(y_test, y_prob, multi_class="ovr")
+st.write(f"AUC: {auc:.2f}")
+
+# ROC Curve (only plot ROC for each class if necessary)
+# Optionally add ROC curves for each class later if needed
 
 # Feature importance
 st.subheader("Feature Importance")
@@ -68,10 +63,10 @@ def user_input_features():
     return pd.DataFrame([input_data])
 
 input_df = user_input_features()
+
 if not input_df.isnull().values.any():
     input_df_encoded = pd.get_dummies(input_df)
     input_df_encoded = input_df_encoded.reindex(columns=X_encoded.columns, fill_value=0)
-    prediction = model.predict(input_df_encoded)
-    probability = model.predict_proba(input_df_encoded)[0][1]
-    st.write(f"Prediction: {'Metastasis' if prediction[0] == 1 else 'No Metastasis'}")
-    st.write(f"Probability of Metastasis: {probability:.2f}")
+    prediction = model.predict_proba(input_df_encoded)[0]
+    for i, prob in enumerate(prediction):
+        st.success(f"Predicted probability of class {i}: {prob:.2%}")
